@@ -534,14 +534,19 @@ func deploySecret(name, namespace string, data map[string][]byte) error {
 
 func deploySecrets(namespace string, secrets map[string]map[string][]byte) error {
 	for secretName, secretData := range secrets {
-		k8s.Client().CoreV1().Secrets(namespace).Delete(secretName, &meta_v1.DeleteOptions{})
-		log.Infof("Deploying secret %s/%s...", namespace, secretName)
-		err := deploySecret(secretName, namespace, secretData)
-		if err != nil {
-			return fmt.Errorf("unable to deploy secret %s/%s: %s", namespace, secretName, err)
+		s, err := k8s.Client().CoreV1().Secrets(namespace).Get(secretName, meta_v1.GetOptions{})
+		if err != nil || len(s.Data) == 0 {
+			log.Infof("Deploying secret %s/%s...", namespace, secretName)
+			err := deploySecret(secretName, namespace, secretData)
+			if err != nil {
+				return fmt.Errorf("unable to deploy secret %s/%s: %s", namespace, secretName, err)
+			} else {
+				log.Info("Done")
+			}
 		} else {
-			log.Info("Done")
+			log.Infof("Skipping secret \"%s/%s\", because it already exists and isn't empty", namespace, secretName)
 		}
+
 	}
 	return nil
 }
